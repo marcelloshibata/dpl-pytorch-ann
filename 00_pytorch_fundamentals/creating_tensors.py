@@ -16,3 +16,10 @@ random_image_size_tensor.shape, random_image_size_tensor.ndim
 #%% Tensors com 0 e 1
 zero = torch.zeros(size=(3, 4))
 ones = torch.ones(size=(3, 4))
+
+#%% Tensors-like e range de tensors
+one_to_ten = torch.arange(start=1, step=1, end=11)
+one_to_ten
+
+ten_zeros = torch.zeros_like(input=one_to_ten)
+ten_zeros
