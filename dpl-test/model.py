@@ -114,3 +114,42 @@ print(sum(p.numel() for p in model.parameters()))
 # - model.parameters() devolve todos os tensores de pesos e biases (de cada Conv2d e da Linear).
 # - p.numel() é o número de elementos de cada tensor.
 # - sum(...) soma tudo, e o resultado é a quantidade total de números que o treino vai ajustar.
+
+# Em ML clássico se chama model.fit(X, y) e a biblioteca faz tudo. 
+# No PyTorch se escreve esse "fit" na mão, e esse é o loop de treino. A ideia é simples: 
+# o modelo tenta, erra, e corrige um pouquinho. Isso se repete muitas vezes.
+
+# Uma analogia: você está aprendendo a acertar dardos num alvo.
+
+# 1. Joga o dardo (o modelo faz uma predição).
+# 2. Vê o quão longe do centro caiu (a loss mede o erro).
+# 3. Descobre para onde ajustar o braço (o gradiente).
+# 4. Ajusta o braço (o optimizer atualiza os pesos).
+# 5. Joga de novo.
+
+# forma de medir o erro
+criterion = nn.BCEWithLogitsLoss()
+
+# como corrigir os pesos
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+# y = labels (0 normal 1 pneumonia) passados com .to(device) 
+# para ficarem no mesmo dispositivo (cuda GPU)
+y = labels.float().unsqueeze(1).to(device)
+
+for epoch in range(3):
+    model.train()
+    running_loss = 0.0
+    for images, labels in train_dl:
+        # É necessário recalcular o x e y dentro do loop
+        x = images.to(device)
+        y = labels.float().unsqueeze(1).to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(x)
+        loss = criterion(outputs, y)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item() * images.size(0)
+    epoch_loss = running_loss / len(train_ds)
+    print(f"Epoch {epoch+1}: loss {epoch_loss:.4f}")
