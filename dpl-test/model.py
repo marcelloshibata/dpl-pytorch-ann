@@ -3,6 +3,10 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
+
+# Equivalente ao random state 42
+torch.manual_seed(42)
 
 # Pipeline que realiza transformações nas imagens, padronizando-as.
 tfm = transforms.Compose([
@@ -153,3 +157,43 @@ for epoch in range(3):
         running_loss += loss.item() * images.size(0)
     epoch_loss = running_loss / len(train_ds)
     print(f"Epoch {epoch+1}: loss {epoch_loss:.4f}")
+
+
+# Salvando os pesos do modelo.
+# model.state_dict() é um dicionário com todos os pesos e biases (nome da camada -> tensor)
+# salvamos só os números e não a classe.
+# torch.save() grava esse dicionário em disco.
+torch.save(model.state_dict(), "modelo_pneumonia.pt")
+print("Pesos salvos")
+
+# Para carregar depois:
+model = PneumoniaCNN().to(device)
+model.load_state_dict(torch.load("modelo_pneumonia.pt"))
+
+# AVALIAÇÃO NA BASE DE TESTES
+
+# Modo avaliação
+model.eval()
+
+all_probs = []
+all_labels = []
+
+with torch.no_grad(): # desliga cálculo de gradientes para economizar memória e tempo já que não vamos treinar
+    for images, labels in test_dl:
+        x = images.to(device)
+        logits = model(x)
+
+        # Aqui precisamos transformar o logit em probabilidade utilizando sigmoid
+        probs = torch.sigmoid(logits).squeeze(1).cpu() # probabilidade de pneumonia
+        # .cpu necessário pois traz o resultado pra memória da CPU. sklearn não trabalha com GPU        
+
+        all_probs.append(probs)
+        all_labels.append(labels)
+
+probs = torch.cat(all_probs) # junta a lista de tensores em um tensor só
+labels = torch.cat(all_labels) # junta a lista de tensores em um tensor só
+preds = (probs > 0.5).long() # predições: 1 se probabilidade > 0.5, senão 0
+
+print(confusion_matrix(labels, preds))
+print(classification_report(labels, preds, target_names=["NORMAL", "PNEUMONIA"]))
+print("AUC: ", roc_auc_score(labels, probs))
